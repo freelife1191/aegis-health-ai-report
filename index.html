@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="ko" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aegis Health AI: 대화형 보고서 (HTML 다이어그램 적용)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Health Tech -->
+    <!-- Application Structure Plan: A single-page, scrollable application with a sticky top navigation for easy access to key sections. The structure is designed to tell a story: starting with the vision (Why), moving to the product details (What), then diving deep into the technical architecture (How), and finishing with governance (Responsibility). The centerpiece is an interactive MLOps phase explorer, allowing users to click through the Local, Dev, Stage, and Prod phases to see detailed information, architecture diagrams, and code, making the complex evolution of the system easy to understand. -->
+    <!-- Visualization & Content Choices: 
+        - Project Overview: Text and key value propositions presented in clean cards.
+        - User Persona: Card-based layout for easy reading.
+        - MVP Features: An interactive tab/toggle system to switch between Frontend and Backend specifications. This now includes a LIVE Gemini-powered chat demo for the frontend, allowing users to ask a question and receive an evidence-based answer, followed by a personalized action plan. Goal: Demonstrate core functionality. Method: HTML/JS Toggle + Gemini API fetch. Justification: Makes the product vision tangible and interactive.
+        - MLOps Phases: An interactive diagram built with HTML/CSS and JS. Users click phase buttons to update a central panel displaying the architecture diagram (image), goals, tech stack, and code snippets. The diagrams are now rendered directly with HTML/CSS, removing external dependencies. Goal: Explain complex, phased architecture. Method: Interactive HTML/JS component. Justification: Makes the system's evolution the central, explorable story of the application.
+        - Cost/Complexity Chart: A Bar Chart (Chart.js) to provide a quick quantitative comparison of the MLOps phases. Goal: Compare. Method: Chart.js Bar Chart. Justification: Adds a data-driven visual element to complement the qualitative descriptions.
+        - Governance: Accordion-style sections for a clean layout.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f8f9fa;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 40vh;
+            max-height: 400px;
+        }
+        .nav-link {
+            transition: all 0.3s;
+        }
+        .nav-link.active {
+            color: #14b8a6;
+            transform: scale(1.1);
+        }
+        .phase-button {
+            transition: all 0.3s;
+        }
+        .phase-button.active {
+            background-color: #0d9488;
+            color: white;
+            transform: translateY(-4px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .content-card {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .content-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.1);
+        }
+        .chat-bubble {
+            max-width: 75%;
+            padding: 10px 15px;
+            border-radius: 1.25rem;
+        }
+        .user-bubble {
+            background-color: #0d9488;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 0.25rem;
+        }
+        .ai-bubble {
+            background-color: #e2e8f0;
+            color: #1e293b;
+            align-self: flex-start;
+            border-bottom-left-radius: 0.25rem;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0d9488;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Diagram Styles */
+        .flow-arrow {
+            font-size: 1.5rem;
+            line-height: 2rem;
+            color: #4a5568;
+        }
+        .component {
+            border: 2px solid #e2e8f0;
+            background-color: #f7fafc;
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            text-align: center;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+        .sub-system {
+            border: 2px dashed #a0aec0;
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            padding: 1rem;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <nav id="navbar" class="bg-white/80 backdrop-blur-lg sticky top-0 z-50 shadow-md transition-all duration-300">
+        <div class="container mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-2">
+                    <span class="text-2xl font-bold text-teal-600">🛡️</span>
+                    <span class="text-xl font-bold text-slate-700">Aegis Health AI</span>
+                </div>
+                <div class="hidden md:flex items-center space-x-6">
+                    <a href="#vision" class="nav-link text-slate-600 hover:text-teal-600 font-medium">비전</a>
+                    <a href="#product" class="nav-link text-slate-600 hover:text-teal-600 font-medium">제품 명세</a>
+                    <a href="#architecture" class="nav-link text-slate-600 hover:text-teal-600 font-medium">아키텍처</a>
+                    <a href="#governance" class="nav-link text-slate-600 hover:text-teal-600 font-medium">거버넌스</a>
+                </div>
+                <div class="md:hidden">
+                    <button id="mobile-menu-button" class="text-slate-700 focus:outline-none">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div id="mobile-menu" class="hidden md:hidden">
+            <a href="#vision" class="block py-2 px-4 text-sm text-slate-600 hover:bg-teal-50">비전</a>
+            <a href="#product" class="block py-2 px-4 text-sm text-slate-600 hover:bg-teal-50">제품 명세</a>
+            <a href="#architecture" class="block py-2 px-4 text-sm text-slate-600 hover:bg-teal-50">아키텍처</a>
+            <a href="#governance" class="block py-2 px-4 text-sm text-slate-600 hover:bg-teal-50">거버넌스</a>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-4 md:p-8">
+        
+        <section id="vision" class="min-h-screen flex flex-col justify-center items-center text-center py-20">
+            <div class="max-w-4xl mx-auto">
+                <h1 class="text-4xl md:text-6xl font-bold text-slate-800 mb-4">Aegis Health AI</h1>
+                <p class="text-xl md:text-2xl text-slate-600 mb-8">신뢰할 수 있는 당신의 개인 맞춤형 건강 코파일럿</p>
+                <div class="w-full p-8 bg-white rounded-xl shadow-lg">
+                     <p class="text-lg text-slate-700 leading-relaxed text-left">
+                        Aegis Health AI는 파편화된 건강 정보 시장에 새로운 기준을 제시합니다. 저희는 과학적 증거에 기반한 답변과 명확한 출처를 제공하여 사용자가 자신의 건강에 대해 정보에 입각한 결정을 내릴 수 있도록 돕습니다. MVP의 핵심은 검증된 학술 연구 결과를 검색하고, 이를 바탕으로 **Gemini AI**가 생성한 답변과 **검증 가능한 출처(verifiable source)**를 함께 제공하여 정보의 신뢰성을 극대화하는 것입니다.
+                    </p>
+                </div>
+                <div class="mt-10 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="content-card p-6">
+                        <h3 class="text-xl font-bold mb-2">사용자 페르소나: 김현우 (35세)</h3>
+                        <p class="text-slate-600 text-left">건강에 관심이 많지만, 넘쳐나는 광고성, 비검증 정보에 지쳐있습니다. "내가 먹는 크레아틴이 정말 효과가 있는지, 부작용은 없는지 과학적인 근거를 바탕으로 알고 싶다"는 명확한 니즈를 가지고 있습니다.</p>
+                    </div>
+                    <div class="content-card p-6">
+                        <h3 class="text-xl font-bold mb-2">핵심 사용자 스토리</h3>
+                        <ul class="text-slate-600 text-left list-disc list-inside space-y-2">
+                            <li>자연어 질문으로 신뢰성 있는 건강 정보를 얻고 싶다.</li>
+                            <li>복잡한 논문을 직접 읽지 않고 핵심 결과를 요약 받고 싶다.</li>
+                            <li>AI 답변의 근거가 된 실제 연구 출처를 확인하고 싶다.</li>
+                            <li>✨ AI 답변을 바탕으로 개인 맞춤형 실천 계획을 얻고 싶다.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="product" class="py-20">
+            <h2 class="text-3xl font-bold text-center mb-12">MVP 제품 명세 (Live Demo)</h2>
+            <div class="max-w-5xl mx-auto p-8 content-card">
+                <p class="text-lg text-slate-600 mb-8 text-center">MVP는 서비스의 핵심 가치인 '증거 기반 Q&A'를 직관적으로 경험할 수 있도록 설계되었습니다. 아래 대화형 데모에서 직접 질문하여 Gemini AI의 답변과 개인 맞춤형 제안 기능을 체험해 보세요.</p>
+                <div class="flex justify-center mb-8">
+                    <div class="flex space-x-1 bg-slate-200 p-1 rounded-full">
+                        <button id="btn-frontend" class="px-4 py-2 text-sm font-medium rounded-full bg-white text-teal-600 shadow">라이브 데모</button>
+                        <button id="btn-backend" class="px-4 py-2 text-sm font-medium rounded-full text-slate-600">백엔드 명세</button>
+                    </div>
+                </div>
+
+                <div id="content-frontend">
+                    <h3 class="text-2xl font-bold mb-4">메인 Q&A 대시보드 (Gemini AI 연동)</h3>
+                    <div class="bg-slate-100 rounded-lg p-4">
+                        <div id="chat-window" class="h-80 overflow-y-auto mb-4 p-2 flex flex-col space-y-4">
+                            <div class="chat-bubble ai-bubble">
+                                <p>안녕하세요! Aegis Health AI입니다. 건강에 대해 궁금한 점을 무엇이든 물어보세요. 예: "크레아틴의 효능과 부작용은 무엇인가요?"</p>
+                            </div>
+                        </div>
+                        <div id="loader-container" class="flex justify-center items-center h-12 hidden">
+                            <div class="loader"></div>
+                        </div>
+                        <form id="chat-form" class="flex items-center space-x-2">
+                            <input type="text" id="chat-input" class="flex-grow p-3 border rounded-full focus:ring-2 focus:ring-teal-500 focus:outline-none" placeholder="여기에 질문을 입력하세요...">
+                            <button type="submit" class="bg-teal-500 hover:bg-teal-600 text-white font-bold p-3 rounded-full transition duration-300 flex items-center justify-center">
+                                <span class="text-xl">✨</span>
+                            </button>
+                        </form>
+                         <div id="action-plan-container" class="mt-4"></div>
+                    </div>
+                </div>
+
+                <div id="content-backend" class="hidden">
+                     <h3 class="text-2xl font-bold mb-4">백엔드 (FastAPI)</h3>
+                     <p class="text-slate-600 mb-6">프론트엔드의 요청 처리, 외부 API 연동, RAG 파이프라인 오케스트레이션을 담당합니다.</p>
+                     <div class="space-y-6">
+                        <div>
+                            <h4 class="text-xl font-semibold mb-2">API 엔드포인트</h4>
+                            <div class="bg-slate-100 p-4 rounded-lg font-mono text-sm overflow-x-auto">
+                                <p><strong class="text-teal-600">POST</strong> /api/v1/query &nbsp;&nbsp;&nbsp; (RAG 파이프라인 실행)</p>
+                                <p><strong class="text-teal-600">POST</strong> /api/v1/action-plan &nbsp;&nbsp;&nbsp; (✨ 개인 맞춤형 실천 계획 생성)</p>
+                            </div>
+                        </div>
+                        <div>
+                             <h4 class="text-xl font-semibold mb-2">RAG 파이프라인 알고리즘</h4>
+                             <ol class="list-decimal list-inside text-slate-600 space-y-1">
+                                 <li>사용자 질문(`query_text`) 수신</li>
+                                 <li>`Consensus.app` API로 관련 논문 검색 (Retrieve)</li>
+                                 <li>검색된 논문 초록과 질문으로 프롬프트 구성 (Augment)</li>
+                                 <li>구성된 프롬프트를 **Gemini API**로 전송 (Generate)</li>
+                                 <li>LLM 답변과 논문 출처를 조합하여 최종 응답 생성</li>
+                             </ol>
+                        </div>
+                         <div>
+                            <h4 class="text-xl font-semibold mb-2">데이터베이스 스키마</h4>
+                            <div class="grid md:grid-cols-2 gap-4">
+                               <div class="bg-slate-100 p-4 rounded-lg font-mono text-sm">
+                                   <p class="font-bold">PostgreSQL: `users` 테이블</p>
+                                   <p>id (UUID)</p>
+                                   <p>gender (VARCHAR)</p>
+                                   <p>age (INTEGER)</p>
+                                   <p>created_at (TIMESTAMPTZ)</p>
+                               </div>
+                                <div class="bg-slate-100 p-4 rounded-lg font-mono text-sm">
+                                   <p class="font-bold">ChromaDB: `aegis_papers` 컬렉션</p>
+                                   <p>Embedding Vector</p>
+                                   <p>Metadata (title, authors, year)</p>
+                               </div>
+                            </div>
+                         </div>
+                     </div>
+                </div>
+            </div>
+        </section>
+
+
+        <section id="architecture" class="py-20">
+            <h2 class="text-3xl font-bold text-center mb-4">MLOps 아키텍처 청사진</h2>
+            <p class="max-w-3xl mx-auto text-center text-slate-600 mb-12">Aegis Health AI의 시스템은 로컬 개발 환경에서 시작하여 최종 프로덕션까지 4단계에 걸쳐 점진적으로 진화합니다. 각 단계를 클릭하여 상세한 아키텍처와 기술 스택을 확인해 보세요.</p>
+
+            <div class="flex flex-wrap justify-center gap-2 md:gap-4 mb-8">
+                <button data-phase="1" class="phase-button active bg-teal-500 text-white px-4 py-2 rounded-full font-semibold shadow-md">Phase 1: Local</button>
+                <button data-phase="2" class="phase-button bg-white px-4 py-2 rounded-full font-semibold shadow-md">Phase 2: Dev</button>
+                <button data-phase="3" class="phase-button bg-white px-4 py-2 rounded-full font-semibold shadow-md">Phase 3: Stage</button>
+                <button data-phase="4" class="phase-button bg-white px-4 py-2 rounded-full font-semibold shadow-md">Phase 4: Prod</button>
+            </div>
+            
+            <div id="phase-details" class="content-card p-6 md:p-8 min-h-[500px] transition-all duration-500">
+            </div>
+
+            <div class="mt-16">
+                 <h3 class="text-2xl font-bold text-center mb-6">단계별 비용 및 복잡도 비교</h3>
+                 <div class="chart-container">
+                     <canvas id="complexityChart"></canvas>
+                 </div>
+            </div>
+        </section>
+
+        <section id="governance" class="py-20">
+             <h2 class="text-3xl font-bold text-center mb-12">거버넌스, 위험 및 규정 준수 (GRC)</h2>
+            <div class="max-w-4xl mx-auto space-y-4">
+                <p class="text-lg text-slate-600 mb-8 text-center">
+                    실제 헬스케어 애플리케이션은 기술적 우수성을 넘어 윤리적, 규제적 책임을 다해야 합니다. Aegis Health AI는 설계 단계부터 신뢰성, 공정성, 보안을 핵심 비기능적 요구사항으로 고려합니다.
+                </p>
+                <div class="content-card">
+                    <button class="w-full text-left p-4 font-bold text-lg flex justify-between items-center accordion-toggle">
+                        <span>신뢰성 (Hallucination 완화)</span>
+                        <span class="transform transition-transform duration-300">▼</span>
+                    </button>
+                    <div class="accordion-content hidden p-4 pt-0">
+                        <p class="text-slate-600">모든 답변은 RAG를 통해 `Consensus.app`의 검색 결과에 기반해야 합니다. 또한, 검색된 컨텍스트와 질문의 관련성을 평가하여 신뢰도가 낮은 경우 "신뢰도 높은 답변을 제공할 수 없습니다"와 같은 안전한 응답을 반환하는 메커니즘을 구현합니다.</p>
+                    </div>
+                </div>
+                 <div class="content-card">
+                    <button class="w-full text-left p-4 font-bold text-lg flex justify-between items-center accordion-toggle">
+                        <span>공정성 (Bias 완화)</span>
+                         <span class="transform transition-transform duration-300">▼</span>
+                    </button>
+                    <div class="accordion-content hidden p-4 pt-0">
+                        <p class="text-slate-600">RAG의 기반이 되는 학술 데이터에도 인구통계학적 편향이 존재할 수 있음을 인지합니다. 테스트 단계에서 `EquityMedQA`와 같은 벤치마크를 사용하여 다양한 인구 집단에 대한 답변의 일관성과 정확성을 평가하여 편향을 최소화합니다.</p>
+                    </div>
+                </div>
+                 <div class="content-card">
+                    <button class="w-full text-left p-4 font-bold text-lg flex justify-between items-center accordion-toggle">
+                        <span>보안 (HIPAA 준수)</span>
+                        <span class="transform transition-transform duration-300">▼</span>
+                    </button>
+                    <div class="accordion-content hidden p-4 pt-0">
+                        <ul class="list-disc list-inside text-slate-600 space-y-2">
+                           <li>모든 보호 대상 건강 정보(PHI)는 전송 및 저장 시 AES-256 이상으로 암호화합니다.</li>
+                           <li>IAM 역할을 통해 최소 권한 원칙에 따른 접근 제어를 구현합니다.</li>
+                           <li>모든 데이터 접근 및 시스템 활동은 CloudTrail 등을 통해 감사 가능하도록 로깅합니다.</li>
+                       </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-slate-800 text-white py-8">
+        <div class="container mx-auto text-center">
+            <p>Aegis Health AI Interactive Report</p>
+            <p class="text-sm text-slate-400 mt-2">Generated on June 23, 2025</p>
+        </div>
+    </footer>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // --- Gemini API Integration ---
+            const chatWindow = document.getElementById('chat-window');
+            const chatForm = document.getElementById('chat-form');
+            const chatInput = document.getElementById('chat-input');
+            const loader = document.getElementById('loader-container');
+            const actionPlanContainer = document.getElementById('action-plan-container');
+            let lastAiResponse = "";
+
+            async function callGemini(prompt) {
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                
+                const payload = {
+                    contents: [{
+                        role: "user",
+                        parts: [{ text: prompt }]
+                    }]
+                };
+
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`API call failed with status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    if (result.candidates && result.candidates.length > 0) {
+                        return result.candidates[0].content.parts[0].text;
+                    }
+                    return "죄송합니다. 답변을 생성하는 데 실패했습니다.";
+                } catch (error) {
+                    console.error("Gemini API Error:", error);
+                    return "죄송합니다. AI 서비스에 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+                }
+            }
+
+            chatForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const userInput = chatInput.value.trim();
+                if (!userInput) return;
+                
+                appendMessage(userInput, 'user');
+                chatInput.value = '';
+                loader.classList.remove('hidden');
+                actionPlanContainer.innerHTML = '';
+
+                // Simulate RAG by providing mock context
+                const mockContext = `
+                    연구 1 (Buford et al., 2007, Journal of the International Society of Sports Nutrition): 크레아틴 모노하이드레이트는 단기간 고강도 운동 능력 향상에 가장 효과적인 보충제 중 하나이다. 하루 3-5g 섭취는 안전하며, 근육량과 근력 증가에 기여할 수 있다. 일부 사용자는 경미한 위장 장애를 경험할 수 있다.
+                    연구 2 (Kreider et al., 2017, Journal of the International Society of Sports Nutrition): 장기간 크레아틴 섭취가 신장 기능에 해롭다는 증거는 없다. 운동선수에게 크레아틴 보충은 근육 성능 회복을 돕고 부상 위험을 줄일 수 있다.
+                `;
+
+                const ragPrompt = `
+                    당신은 의학 및 영양학 전문가입니다. 아래의 과학적 연구 컨텍스트를 바탕으로 사용자의 질문에 대해 명확하고 이해하기 쉽게 답변해주세요. 답변은 반드시 컨텍스트에 근거해야 하며, 마지막에 출처를 명시해주세요.
+
+                    # 컨텍스트:
+                    ${mockContext}
+
+                    # 사용자 질문:
+                    ${userInput}
+
+                    # 답변 형식:
+                    [답변 내용]
+
+                    ---
+                    **출처:**
+                    * Buford, T. W., et al. (2007).
+                    * Kreider, R. B., et al. (2017).
+                `;
+
+                const aiResponse = await callGemini(ragPrompt);
+                loader.classList.add('hidden');
+                appendMessage(aiResponse, 'ai');
+                lastAiResponse = aiResponse; // Save for action plan
+                showActionPlanButton();
+            });
+
+            function appendMessage(message, sender) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `chat-bubble ${sender === 'user' ? 'user-bubble' : 'ai-bubble'}`;
+                // Naive markdown to HTML for lists and bold
+                let formattedMessage = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                formattedMessage = formattedMessage.replace(/(\n\s*\*)/g, '<br>•');
+                messageDiv.innerHTML = `<p>${formattedMessage}</p>`;
+                chatWindow.appendChild(messageDiv);
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            }
+
+            function showActionPlanButton() {
+                const button = document.createElement('button');
+                button.id = 'action-plan-btn';
+                button.className = 'w-full mt-4 bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-4 rounded-full transition duration-300';
+                button.innerHTML = '✨ 나만의 실천 계획 만들기';
+                actionPlanContainer.appendChild(button);
+
+                button.addEventListener('click', async () => {
+                    loader.classList.remove('hidden');
+                    button.disabled = true;
+                    button.textContent = '생성 중...';
+
+                    const actionPlanPrompt = `
+                        당신은 전문 헬스 트레이너이자 영양사입니다. 아래 대화 내용을 바탕으로 '김현우(35세, 남성, 건강과 근력 운동에 관심 많음)'님을 위한 주간 실천 계획을 구체적으로 작성해주세요. 계획은 요일별로 나누고, 실천하기 쉬운 형태로 제안해주세요.
+
+                        # 이전 대화 내용:
+                        ${lastAiResponse}
+
+                        # 실천 계획 형식:
+                        **김현우님을 위한 주간 건강 실천 계획**
+                        * **월요일:** [구체적인 활동 제안]
+                        * **수요일:** [구체적인 활동 제안]
+                        * **금요일:** [구체적인 활동 제안]
+                        * **주말 팁:** [주말에 참고할 만한 추가 팁]
+                    `;
+                    
+                    const planResponse = await callGemini(actionPlanPrompt);
+                    loader.classList.add('hidden');
+                    actionPlanContainer.innerHTML = ''; // Clear button
+                    const planCard = document.createElement('div');
+                    planCard.className = 'p-4 bg-teal-50 border border-teal-200 rounded-lg mt-4';
+                    
+                    // Naive markdown to HTML for lists and bold
+                    let formattedPlan = planResponse.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    formattedPlan = formattedPlan.replace(/(\n\s*\*)/g, '<br>•');
+                    planCard.innerHTML = formattedPlan;
+
+                    actionPlanContainer.appendChild(planCard);
+                });
+            }
+
+
+            // --- Existing Page Logic ---
+            const phaseData = {
+                '1': {
+                    title: 'Phase 1: Local - 로컬 개발 환경',
+                    goal: '최소 비용으로 단일 머신에서 전체 서비스 기능 개발 및 디버깅을 수행합니다.',
+                    diagramHtml: `
+                        <div class="flex flex-col items-center space-y-2 text-sm">
+                            <div class="component w-32">👨‍💻 사용자</div>
+                            <div class="flow-arrow">↓</div>
+                            <div class="sub-system w-full p-3">
+                                <h3 class="font-semibold text-center mb-2 text-gray-600 text-xs">Developer's Local Machine (Docker Compose)</h3>
+                                <div class="flex justify-around items-center bg-white p-2 rounded-lg border">
+                                    <div class="component">Frontend<br>(Gradio)</div>
+                                    <div class="flow-arrow">↔</div>
+                                    <div class="component">Backend<br>(FastAPI)</div>
+                                    <div class="flow-arrow">↔</div>
+                                    <div class="flex flex-col space-y-1">
+                                        <div class="component text-xs">PostgreSQL</div>
+                                        <div class="component text-xs">ChromaDB</div>
+                                    </div>
+                                </div>
+                                 <div class="flex justify-center items-center mt-2 space-x-4">
+                                    <div class="flow-arrow text-xs">↓</div>
+                                    <div class="flow-arrow text-xs">↓</div>
+                                </div>
+                                <div class="flex justify-around mt-1">
+                                    <div class="component text-xs">Consensus API</div>
+                                    <div class="component text-xs">External LLM API</div>
+                                </div>
+                            </div>
+                        </div>`,
+                    stack: ['Docker Compose', 'FastAPI', 'Gradio', 'External LLM API'],
+                    code: `
+// docker-compose.yml
+version: '3.8'
+services:
+  backend:
+    build: ./backend
+    ports: ["8000:8000"]
+    environment:
+      - LLM_API_KEY=\${LLM_API_KEY}
+  frontend:
+    build: ./frontend
+    ports: ["7860:7860"]
+    depends_on: [backend]
+`
+                },
+                '2': {
+                    title: 'Phase 2: Dev - 클라우드 개발 환경',
+                    goal: '최소 비용의 클라우드 환경에서 시스템을 통합하고 테스트합니다. 비용 최적화가 최우선 순위입니다.',
+                    diagramHtml: `
+                        <div class="flex flex-col items-center space-y-2 text-sm">
+                            <div class="component w-32">👨‍💻 사용자</div>
+                             <div class="flow-arrow">↓</div>
+                            <div class="sub-system w-full p-3">
+                                <h3 class="font-semibold text-center mb-2 text-gray-600 text-xs">AWS Cloud</h3>
+                                <div class="component mb-2 text-xs">Application Load Balancer</div>
+                                <div class="flow-arrow">↓</div>
+                                <div class="sub-system w-full p-2 bg-blue-50 border-blue-200">
+                                     <h4 class="font-semibold text-center text-xs mb-2 text-blue-700">Amazon EKS Cluster</h4>
+                                     <div class="grid grid-cols-2 gap-2 text-xs">
+                                        <div class="component">Frontend</div>
+                                        <div class="component">Backend</div>
+                                        <div class="component col-span-2">Triton + vLLM<br>(on GPU Spot Node)</div>
+                                     </div>
+                                </div>
+                                <div class="flow-arrow">↓</div>
+                                <div class="flex justify-around w-full mt-2 text-xs">
+                                     <div class="component">AWS RDS<br>(PostgreSQL)</div>
+                                     <div class="component">ChromaDB<br>(on EBS)</div>
+                                </div>
+                            </div>
+                        </div>`,
+                    stack: ['AWS EKS', 'Spot Instance', 'Terraform', 'Triton (vLLM)'],
+                    code: `
+# eks_nodes.tf (Terraform)
+eks_managed_node_groups = {
+  gpu_spot = {
+    instance_types = ["g4dn.xlarge"]
+    capacity_type  = "SPOT"
+    min_size       = 0
+    max_size       = 1
+  }
+}
+`
+                },
+                '3': {
+                    title: 'Phase 3: Stage - 스테이징 환경',
+                    goal: '프로덕션 환경과 유사한 구성에서 최종 릴리스를 테스트하고 CI/CD 자동화를 도입합니다.',
+                    diagramHtml: `
+                        <div class="flex flex-col md:flex-row justify-between items-center space-y-2 md:space-y-0 md:space-x-2 text-sm">
+                            <div class="sub-system w-full md:w-1/2 p-2 text-center">
+                                <h3 class="font-semibold mb-2 text-gray-600 text-xs">Development & CI</h3>
+                                <div class="component text-xs">Developer</div>
+                                <div class="flow-arrow text-xs">↓ Git Push</div>
+                                <div class="component text-xs">GitHub</div>
+                                <div class="flow-arrow text-xs">↓ Trigger</div>
+                                <div class="component text-xs">GitHub Actions</div>
+                                <div class="flex justify-around mt-1">
+                                    <div>
+                                        <div class="flow-arrow text-xs">↓ Push</div>
+                                        <div class="component text-xs">Amazon ECR</div>
+                                    </div>
+                                     <div>
+                                        <div class="flow-arrow text-xs">↓ Update</div>
+                                        <div class="component text-xs">K8s Manifests</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flow-arrow hidden md:block">→</div>
+                             <div class="flow-arrow md:hidden">↓</div>
+                            <div class="sub-system w-full md:w-1/2 p-2 text-center">
+                                <h3 class="font-semibold mb-2 text-gray-600 text-xs">Staging on AWS (GitOps)</h3>
+                                <div class="component text-xs">K8s Manifests</div>
+                                <div class="flow-arrow text-xs">↓ Pull</div>
+                                <div class="component text-xs">ArgoCD</div>
+                                <div class="flow-arrow text-xs">↓ Sync</div>
+                                 <div class="sub-system p-2 bg-green-50 border-green-200">
+                                     <h4 class="font-semibold text-center text-xs text-green-700">EKS Cluster</h4>
+                                      <div class="component text-xs">App Services</div>
+                                </div>
+                            </div>
+                        </div>`,
+                    stack: ['AWS EKS', 'GitOps (ArgoCD)', 'GitHub Actions'],
+                    code: `
+# argocd-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: aegis-stage
+spec:
+  source:
+    repoURL: 'https://github.com/your/k8s-manifests.git'
+    path: helm-charts/aegis-app
+  destination:
+    namespace: aegis-stage
+  syncPolicy:
+    automated: { selfHeal: true }
+`
+                },
+                '4': {
+                    title: 'Phase 4: Prod - 프로덕션 환경',
+                    goal: '고가용성, 확장성, 보안, 비용 효율성을 갖춘 실제 서비스 운영 환경을 구축합니다.',
+                    diagramHtml: `
+                         <div class="sub-system w-full p-2 text-sm">
+                            <h3 class="font-semibold text-center mb-1 text-xs text-gray-600">AWS Cloud (Production)</h3>
+                            <div class="component w-32 mx-auto text-xs">👨‍💻 사용자</div>
+                            <div class="flow-arrow text-center text-xs">↓</div>
+                            <div class="component w-full text-xs">Edge & Security (CloudFront → WAF)</div>
+                            <div class="flow-arrow text-center text-xs">↓</div>
+                            <div class="component w-full text-xs">Application Load Balancer</div>
+                            <div class="flow-arrow text-center text-xs">↓</div>
+                             <div class="grid grid-cols-3 gap-2 mt-1">
+                                <div class="sub-system p-2 bg-purple-50 border-purple-200 col-span-2">
+                                    <h4 class="font-semibold text-center text-xs mb-1 text-purple-700">Amazon EKS Cluster</h4>
+                                    <div class="component mb-1 text-xs">App Services</div>
+                                    <div class="grid grid-cols-2 gap-1 text-xs">
+                                        <div class="component">Karpenter</div>
+                                        <div class="component">Argo Workflows</div>
+                                        <div class="component col-span-2">Observability</div>
+                                    </div>
+                                </div>
+                                <div class="sub-system p-2 bg-yellow-50 border-yellow-200">
+                                     <h4 class="font-semibold text-center text-xs mb-1 text-yellow-700">Managed Data</h4>
+                                     <div class="space-y-1 text-xs">
+                                        <div class="component">RDS</div>
+                                        <div class="component">S3</div>
+                                        <div class="component">ElastiCache</div>
+                                        <div class="component">Vector DB</div>
+                                     </div>
+                                </div>
+                             </div>
+                         </div>`,
+                    stack: ['Karpenter', 'Prometheus', 'Grafana', 'Argo Workflows', 'HIPAA Compliance'],
+                    code: `
+# karpenter-provisioner.yaml
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  template:
+    spec:
+      requirements:
+        - key: "karpenter.sh/capacity-type"
+          operator: In
+          values: ["on-demand", "spot"]
+`
+                }
+            };
+
+            const phaseDetailsContainer = document.getElementById('phase-details');
+            const phaseButtons = document.querySelectorAll('.phase-button');
+
+            function updatePhaseDetails(phase) {
+                const data = phaseData[phase];
+                if (!data) return;
+
+                phaseDetailsContainer.innerHTML = `
+                    <h3 class="text-2xl font-bold mb-2">${data.title}</h3>
+                    <p class="text-slate-600 mb-6">${data.goal}</p>
+                    <div class="grid md:grid-cols-2 gap-6 items-start">
+                        <div>
+                             <h4 class="text-lg font-semibold mb-3">아키텍처 다이어그램</h4>
+                             ${data.diagramHtml}
+                        </div>
+                        <div class="space-y-4">
+                            <div>
+                                <h4 class="text-lg font-semibold mb-3">주요 기술 스택</h4>
+                                <div class="flex flex-wrap gap-2">
+                                    ${data.stack.map(tech => `<span class="bg-teal-100 text-teal-800 text-sm font-medium px-2.5 py-0.5 rounded-full">${tech}</span>`).join('')}
+                                </div>
+                            </div>
+                             <div>
+                                <h4 class="text-lg font-semibold mb-3">핵심 코드 예시</h4>
+                                <pre class="bg-slate-800 text-white p-4 rounded-lg text-xs overflow-x-auto"><code class="language-yaml">${data.code.trim()}</code></pre>
+                             </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            phaseButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const phase = button.dataset.phase;
+                    phaseButtons.forEach(btn => {
+                        btn.classList.remove('active', 'bg-teal-500', 'text-white');
+                        btn.classList.add('bg-white');
+                    });
+                    button.classList.add('active', 'bg-teal-500', 'text-white');
+                    button.classList.remove('bg-white');
+                    updatePhaseDetails(phase);
+                });
+            });
+            
+            updatePhaseDetails('1');
+
+            const btnFrontend = document.getElementById('btn-frontend');
+            const btnBackend = document.getElementById('btn-backend');
+            const contentFrontend = document.getElementById('content-frontend');
+            const contentBackend = document.getElementById('content-backend');
+
+            btnFrontend.addEventListener('click', () => {
+                contentFrontend.classList.remove('hidden');
+                contentBackend.classList.add('hidden');
+                btnFrontend.classList.add('bg-white', 'text-teal-600', 'shadow');
+                btnBackend.classList.remove('bg-white', 'text-teal-600', 'shadow');
+            });
+
+            btnBackend.addEventListener('click', () => {
+                contentBackend.classList.remove('hidden');
+                contentFrontend.classList.add('hidden');
+                btnBackend.classList.add('bg-white', 'text-teal-600', 'shadow');
+                btnFrontend.classList.remove('bg-white', 'text-teal-600', 'shadow');
+            });
+            
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            mobileMenuButton.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+            });
+
+            const accordionToggles = document.querySelectorAll('.accordion-toggle');
+            accordionToggles.forEach(toggle => {
+                toggle.addEventListener('click', () => {
+                    const content = toggle.nextElementSibling;
+                    const icon = toggle.querySelector('span:last-child');
+                    content.classList.toggle('hidden');
+                    icon.classList.toggle('rotate-180');
+                });
+            });
+
+            const ctx = document.getElementById('complexityChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Phase 1: Local', 'Phase 2: Dev', 'Phase 3: Stage', 'Phase 4: Prod'],
+                    datasets: [{
+                        label: '비용',
+                        data: [1, 3, 5, 8],
+                        backgroundColor: 'rgba(20, 184, 166, 0.6)',
+                        borderColor: 'rgba(13, 148, 136, 1)',
+                        borderWidth: 1
+                    }, {
+                        label: '복잡도',
+                        data: [2, 4, 7, 9],
+                        backgroundColor: 'rgba(71, 85, 105, 0.6)',
+                        borderColor: 'rgba(51, 65, 85, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 10,
+                            title: {
+                                display: true,
+                                text: '상대적 수준 (1-10)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    }
+                }
+            });
+
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('.nav-link');
+
+            window.addEventListener('scroll', () => {
+                let current = '';
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    if (pageYOffset >= sectionTop - 100) {
+                        current = section.getAttribute('id');
+                    }
+                });
+
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href').includes(current)) {
+                        link.classList.add('active');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
